@@ -1,10 +1,11 @@
 #include <iostream>
 #include <vector>
+#include <string>
 
 template <typename T>
 class MemoryPool {
 public:
-  MemoryPool(std::size_t capacity): free_memory(capacity, nullptr) {
+  MemoryPool(size_t capacity): free_memory(capacity, nullptr) {
     buffer = reinterpret_cast<T*>(malloc(sizeof(T) * capacity));
     for (size_t i = 0; i < capacity; ++i) {
       free_memory[i] = buffer + i;
@@ -34,16 +35,14 @@ public:
     free_memory.push_back(ptr);
   }
 
-  void printPool() {
-  }
-
 private:
   T* buffer;
   std::vector<T*> free_memory;
 };
 
 int main() {
-  MemoryPool<int> pool(3);
-  int* five = new(pool.allocate()) int(5);
-  pool.deallocate(five);
+  MemoryPool<std::string> string_pool(3);
+  std::string* s1 = new(string_pool.allocate()) std::string("hello world!");
+  std::string* s2 = new(string_pool.allocate()) std::string("hello world 2");
+  string_pool.deallocate(s1);
 }
