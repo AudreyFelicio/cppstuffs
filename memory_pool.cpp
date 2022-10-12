@@ -1,65 +1,49 @@
 #include <iostream>
+#include <vector>
 
 template <typename T>
 class MemoryPool {
 public:
-  MemoryPool(std::size_t capacity): capacity{capacity} {
-    buffer = new T[capacity];
-    is_used = new bool[capacity];
-    for (std::size_t i = 0; i < capacity; ++i) {
-      is_used[i] = false;
+  MemoryPool(std::size_t capacity): free_memory(capacity, nullptr) {
+    buffer = reinterpret_cast<T*>(malloc(sizeof(T) * capacity));
+    for (size_t i = 0; i < capacity; ++i) {
+      free_memory[i] = buffer + i;
     }
   }
 
+  MemoryPool(const MemoryPool& pool) = delete;
+
+  MemoryPool& operator=(const MemoryPool& pool) = delete;
+
+  MemoryPool(MemoryPool&& pool) = delete;
+  
+  MemoryPool& operator=(MemoryPool&& pool) = delete;
+
   ~MemoryPool() {
-    delete[] buffer;
-    delete[] is_used;
+    free(buffer);
   }
 
   T* allocate() {
-    for (std::size_t i = 0; i < capacity; ++i) {
-      if (!is_used[i]) {
-        is_used[i] = true;
-        return &buffer[i];
-      }
-    }
-    return nullptr;
+    T* memory = free_memory.back();
+    free_memory.pop_back();
+    return memory;
   }
 
   void deallocate(T* ptr) {
-    for (std::size_t i = 0; i < capacity; ++i) {
-      if (is_used[i]) {
-        buffer[i] = *ptr;
-        is_used[i] = false;
-        break;
-      }
-    }
+    ptr->~T();
+    free_memory.push_back(ptr);
   }
 
   void printPool() {
-    for (std::size_t i = 0; i < capacity; ++i) {
-      std::cout << buffer[i] << " ";
-    }
-    std::cout << std::endl;
-    for (std::size_t i = 0; i < capacity; ++i) {
-      std::cout << is_used[i] << " ";
-    }
-    std::cout << std::endl;
   }
 
 private:
   T* buffer;
-  bool* is_used;
-  std::size_t capacity;
+  std::vector<T*> free_memory;
 };
 
 int main() {
   MemoryPool<int> pool(3);
-  int* first = pool.allocate();
-  *first = 2023;
-  int* second = pool.allocate();
-  *second = 2024;
-  pool.printPool();
-  pool.deallocate(first);
-  pool.printPool();
+  int* five = new(pool.allocate()) int(5);
+  pool.deallocate(five);
 }
