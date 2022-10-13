@@ -1,14 +1,19 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <cstring>
 
 template <typename T>
 class MemoryPool {
 public:
-  MemoryPool(size_t capacity): free_memory(capacity, nullptr) {
-    buffer = reinterpret_cast<T*>(malloc(sizeof(T) * capacity));
+  MemoryPool(size_t capacity):
+    capacity(capacity),
+    buffer(reinterpret_cast<T*>(malloc(sizeof(T) * capacity))),
+    free_memory(reinterpret_cast<size_t*>(malloc(sizeof(size_t) * capacity))),
+    next_free(nullptr) {
     for (size_t i = 0; i < capacity; ++i) {
-      free_memory[i] = buffer + i;
+      free_memory[i] = i;
+      next_free = free_memory + i;
     }
   }
 
@@ -22,27 +27,52 @@ public:
 
   ~MemoryPool() {
     free(buffer);
+    free(free_memory);
   }
 
   T* allocate() {
-    T* memory = free_memory.back();
-    free_memory.pop_back();
+    if (next_free == nullptr) {
+      return nullptr;
+    }
+    T* memory = buffer + *next_free;
+    std::cout << "allocate: " << memory << std::endl;
+    if (next_free == free_memory) {
+      next_free = nullptr;
+    } else {
+      --next_free;
+    }
     return memory;
   }
 
   void deallocate(T* ptr) {
+    std::cout << "deallocate: " << ptr << std::endl;
+    if (next_free == free_memory + capacity) {
+      return;
+    }
+    size_t curr_idx = ptr - buffer;
     ptr->~T();
-    free_memory.push_back(ptr);
+    // std::cout << curr_idx << " " << ptr << " " << buffer << " " << (ptr - buffer) << std::endl;
+    if (next_free == nullptr) {
+      next_free = free_memory;
+    } else {
+      next_free++;
+    }
+    *next_free = curr_idx;
   }
 
 private:
   T* buffer;
-  std::vector<T*> free_memory;
+  size_t* free_memory;
+  size_t* next_free;
+  size_t capacity;
 };
 
 int main() {
   MemoryPool<std::string> string_pool(3);
   std::string* s1 = new(string_pool.allocate()) std::string("hello world!");
   std::string* s2 = new(string_pool.allocate()) std::string("hello world 2");
+  std::string* s3 = new(string_pool.allocate()) std::string("hello world 3");
   string_pool.deallocate(s1);
+  std::string* s4 = new(string_pool.allocate()) std::string("hello world 4");
+  std::cout << *s2 << " " << *s3 << " " << *s4 << std::endl;
 }
